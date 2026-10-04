@@ -17,7 +17,7 @@ impl Scanner {
         self.tokens.push(Token::new(tk_type, self.line));
     }
 
-    pub fn scan_tokens(&mut self, source: String) -> &Vec<Token> {
+    pub fn scan_tokens(&mut self, source: String) -> Vec<Token> {
         let mut source_iter = source.chars().peekable();
 
         while let Some(c) = source_iter.next() {
@@ -32,7 +32,9 @@ impl Scanner {
                 // no slash here, scroll a bit further
                 ',' => self.add_token(TokenType::Comma),
                 '.' => self.add_token(TokenType::Dot),
-                ';' => self.add_token(TokenType::Semicolon),
+
+                '&' => self.add_token(TokenType::And),
+                '|' => self.add_token(TokenType::Or),
 
                 '!' => {
                     if let Some(&'=') = source_iter.peek() {
@@ -136,8 +138,7 @@ impl Scanner {
 
                     match string.as_str() {
                         "let" => self.add_token(TokenType::Let),
-                        "and" => self.add_token(TokenType::And),
-                        "or" => self.add_token(TokenType::Or),
+                        "const" => self.add_token(TokenType::Const),
                         "if" => self.add_token(TokenType::If),
                         "else" => self.add_token(TokenType::Else),
                         "nil" => self.add_token(TokenType::Nil),
@@ -154,6 +155,7 @@ impl Scanner {
                 _ => println!("Unrecognizable character was found at line {}", self.line),
             };
         }
-        &self.tokens
+        self.add_token(TokenType::EOF);
+        self.tokens.clone()
     }
 }

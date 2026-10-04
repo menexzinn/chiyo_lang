@@ -1,0 +1,51 @@
+Variable declaration:
+
+let x = value
+const x = value
+
+some day i will implement variable
+like "let x type = value"
+
+---------------------------------------
+
+Function declaration:
+
+fun name(arg1: type1, ...) type {
+  stmt (like a variable declaration)
+  stmt (like a conditional clause)
+  stmt (idk another variable or sum)
+  return value
+}
+
+name(arg1, ...)
+
+---------------------------------------
+
+Control flow:
+
+while (condition) {
+  ...
+}
+
+for (element : array) {
+  ...
+}
+
+if (condition1) {
+  ...
+} else if (condition2) {
+  ...
+} else {
+
+}
+
+---------------------------------------
+
+Conditions:
+
+(true & false) == false
+(true | false) == true
+(10 >= 3) == true
+(7 <= 2) == false
+(bread > key) == true
+(1 < 0) == false
