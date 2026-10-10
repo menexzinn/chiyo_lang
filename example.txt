@@ -1,16 +1,13 @@
 Variable declaration:
 
-let x = value
-const x = value
-
-some day i will implement variable
-like "let x type = value"
+let x: type = value
+const x: type = value
 
 ---------------------------------------
 
 Function declaration:
 
-fun name(arg1: type1, ...) type {
+fun name(arg1: type1, ...): type {
   stmt (like a variable declaration)
   stmt (like a conditional clause)
   stmt (idk another variable or sum)

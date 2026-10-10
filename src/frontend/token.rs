@@ -1,7 +1,7 @@
 #[derive(Clone, Debug)]
 pub enum TokenType {
     ParenLeft, ParenRight, BraceLeft, BraceRight,
-    Plus, Minus, Star, Slash, Comma, Dot,
+    Plus, Minus, Star, Slash, Colon, Comma, Dot,
 
     Not, NotEqual,
     Equal, EqualEqual,

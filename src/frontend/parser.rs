@@ -1,5 +1,6 @@
-use crate::token::{Token, TokenType};
-use crate::ast::Stmt;
+use crate::frontend::{Token, TokenType};
+use crate::frontend::{Stmt, BinaryOperator, UnaryOperator};
+use crate::utils::error::{Error, handle_error};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -22,10 +23,6 @@ impl Parser {
         self.pointer += 1;
     }
 
-    // statement call expression
-    // expression call primary expression
-    // makes sense for me
-
     // prescidence order!:
     // primary expression -> unary -> multiplication -> addition ->
     // comparison -> logic -> function call -> assignment expression
@@ -44,20 +41,36 @@ impl Parser {
         self.advance_pointer(); // consume "let" or "const"
 
         let Stmt::Identifier{ value: name } = self.parse_expr() else {
-            panic!("Name of the variable should be a word or sum");
+            handle_error(Error::VariableInvalidName, self.token_at().line());
+            unreachable!();
+        };
+
+        match self.token_at().token_type() {
+            TokenType::Colon => self.advance_pointer(),
+            _ => {
+                handle_error(Error::VariableMissingColon, self.token_at().line());
+                unreachable!();
+            },
+        };
+
+        let Stmt::Identifier{ value: var_type } = self.parse_expr() else {
+            handle_error(Error::VariableMissingType, self.token_at().line());
+            unreachable!();
         };
 
         match self.token_at().token_type() {
             TokenType::Equal => self.advance_pointer(),
-            _ => panic!("You shall use \"=\" to declare a variable"),
+            _ => {
+                handle_error(Error::VariableMissingEquals, self.token_at().line());
+                unreachable!();
+            },
         };
 
-        let value = self.parse_expr();
-
         Stmt::VariableDeclaration {
-            name,
-            value: Box::new(value),
             is_constant,
+            name,
+            var_type,
+            value: Box::new(self.parse_expr()),
         }
     }
 
@@ -70,13 +83,13 @@ impl Parser {
 
         loop {
             let operator = match self.token_at().token_type() {
-                TokenType::Plus => '+',
-                TokenType::Minus => '-',
+                TokenType::Plus => BinaryOperator::Add,
+                TokenType::Minus => BinaryOperator::Subtract,
                 _ => break,
             };
             self.advance_pointer();
 
-            left = Stmt::BinaryExpr {
+            left = Stmt::BinaryExpression {
                 operator,
                 lhs: Box::new(left),
                 rhs: Box::new(self.parse_multiplicative_expr()),
@@ -87,40 +100,66 @@ impl Parser {
     }
 
     fn parse_multiplicative_expr(&mut self) -> Stmt {
-        let mut left = self.parse_primary_expr();
+        let mut left = self.parse_unary_expr();
 
         loop {
-            let operator: char = match self.token_at().token_type() {
-                TokenType::Star => '*',
-                TokenType::Slash => '/',
+            let operator = match self.token_at().token_type() {
+                TokenType::Star => BinaryOperator::Multiply,
+                TokenType::Slash => BinaryOperator::Divide,
                 _ => break,
             };
             self.advance_pointer();
 
-            left = Stmt::BinaryExpr {
+            left = Stmt::BinaryExpression {
                 operator,
                 lhs: Box::new(left),
-                rhs: Box::new(self.parse_primary_expr()),
+                rhs: Box::new(self.parse_unary_expr()),
             };
         }
 
         left
     }
 
+    fn parse_unary_expr(&mut self) -> Stmt {
+        let operator = match self.token_at().token_type() {
+            TokenType::Minus => UnaryOperator::MathematicalNegative,
+            TokenType::Not => UnaryOperator::LogicalNegation,
+            _ => return self.parse_primary_expr(),
+        };
+        self.advance_pointer();
+
+        Stmt::UnaryExpression {
+            operator,
+            rhs: Box::new(self.parse_primary_expr()),
+        }
+    }
+
     fn parse_primary_expr(&mut self) -> Stmt {
         let primary_expr = match self.token_at().token_type() {
             TokenType::Ident(name) => Stmt::Identifier{ value: name },
+
             TokenType::Number(number) => Stmt::NumericLiteral{ value: number },
+
+            TokenType::True => Stmt::BooleanLiteral{ value: true },
+            TokenType::False => Stmt::BooleanLiteral{ value: false },
+
+            TokenType::Nil => Stmt::NullLiteral,
+
             TokenType::ParenLeft => {
                 self.advance_pointer();
                 let value = self.parse_expr();
                 match self.token_at().token_type() {
                     TokenType::ParenRight => value,
-                    _ => panic!("Error: parentheses not closed at line {}", self.token_at().line()),
+                    _ => {
+                        handle_error(Error::UnclosedParentheses, self.token_at().line());
+                        unreachable!();
+                    },
                 }
             },
+
             _ => {
-                panic!("Error: found an unexpected token at line {}", self.token_at().line());
+                handle_error(Error::UnrecognizableToken, self.token_at().line());
+                unreachable!();
             },
         };
         self.advance_pointer();

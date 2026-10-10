@@ -1,4 +1,5 @@
-use crate::token::{Token, TokenType};
+use crate::frontend::{Token, TokenType};
+use crate::utils::error::{Error, handle_error};
 
 pub struct Scanner {
     tokens: Vec<Token>,
@@ -32,44 +33,41 @@ impl Scanner {
                 // no slash here, scroll a bit further
                 ',' => self.add_token(TokenType::Comma),
                 '.' => self.add_token(TokenType::Dot),
+                ':' => self.add_token(TokenType::Colon),
 
                 '&' => self.add_token(TokenType::And),
                 '|' => self.add_token(TokenType::Or),
 
-                '!' => {
-                    if let Some(&'=') = source_iter.peek() {
+                '!' => match source_iter.peek() {
+                    Some(&'=') => {
                         self.add_token(TokenType::NotEqual);
                         source_iter.next();
-                        continue;
-                    }
-                    self.add_token(TokenType::Not);
+                    },
+                    _ => self.add_token(TokenType::Not),
                 },
-                '=' => {
-                    if let Some(&'=') = source_iter.peek() {
+                '=' => match source_iter.peek() {
+                    Some(&'=') => {
                         self.add_token(TokenType::EqualEqual);
                         source_iter.next();
-                        continue;
-                    }
-                    self.add_token(TokenType::Equal);
+                    },
+                    _ => self.add_token(TokenType::Equal),
                 },
-                '>' => {
-                    if let Some(&'=') = source_iter.peek() {
+                '>' => match source_iter.peek() {
+                    Some(&'=') => {
                         self.add_token(TokenType::GreaterEqual);
                         source_iter.next();
-                        continue;
-                    }
-                    self.add_token(TokenType::Greater);
+                    },
+                    _ => self.add_token(TokenType::Greater),
                 },
-                '<' => {
-                    if let Some(&'=') = source_iter.peek() {
+                '<' => match source_iter.peek() {
+                    Some(&'=') => {
                         self.add_token(TokenType::LowerEqual);
                         source_iter.next();
-                        continue;
-                    }
-                    self.add_token(TokenType::Lower);
+                    },
+                    _ => self.add_token(TokenType::Lower),
                 },
-                '/' => {
-                    if let Some(&'/') = source_iter.peek() {
+                '/' => match source_iter.peek() {
+                    Some(&'/') => {
                         // consume the second slash
                         source_iter.next();
                         // imma ignore yapping (comments) till next line
@@ -80,8 +78,8 @@ impl Scanner {
                                 break;
                             }
                         };
-                    }
-                    self.add_token(TokenType::Slash);
+                    },
+                    _ => self.add_token(TokenType::Slash),
                 },
 
                 ' ' => continue,
@@ -102,7 +100,7 @@ impl Scanner {
                     }
 
                     if !is_second_quote_here {
-                        println!("Imma put errors later homie");
+                        handle_error(Error::UnclosedQuotes, self.line);
                     }
 
                     self.add_token(TokenType::String(string));
@@ -120,6 +118,7 @@ impl Scanner {
                         source_iter.next();
                     }
 
+                    // I use unwrap here because it's guaranteed to be a number
                     let number: u32 = number_string.parse().unwrap();
                     self.add_token(TokenType::Number(number));
                 },
@@ -152,7 +151,7 @@ impl Scanner {
                     };
                 },
 
-                _ => println!("Unrecognizable character was found at line {}", self.line),
+                _ => handle_error(Error::UnrecognizableCharacter, self.line),
             };
         }
         self.add_token(TokenType::EOF);

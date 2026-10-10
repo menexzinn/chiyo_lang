@@ -1,1 +1,2 @@
-const number = (3 + 20) * 3
+// example comment
+let x: int = 1
