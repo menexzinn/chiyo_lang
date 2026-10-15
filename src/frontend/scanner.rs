@@ -1,5 +1,5 @@
 use crate::frontend::{Token, TokenType};
-use crate::utils::error::{Error, handle_error};
+use crate::utils::error::{Error, Result};
 
 pub struct Scanner {
     tokens: Vec<Token>,
@@ -18,7 +18,7 @@ impl Scanner {
         self.tokens.push(Token::new(tk_type, self.line));
     }
 
-    pub fn scan_tokens(&mut self, source: String) -> Vec<Token> {
+    pub fn scan_tokens(&mut self, source: String) -> Result<Vec<Token>> {
         let mut source_iter = source.chars().peekable();
 
         while let Some(c) = source_iter.next() {
@@ -100,7 +100,7 @@ impl Scanner {
                     }
 
                     if !is_second_quote_here {
-                        handle_error(Error::UnclosedQuotes, self.line);
+                        return Err((Error::UnclosedQuotes, self.line));
                     }
 
                     self.add_token(TokenType::String(string));
@@ -127,7 +127,7 @@ impl Scanner {
                     let mut string = x.to_string();
 
                     while let Some(&s) = source_iter.peek() {
-                        if !s.is_ascii_alphabetic() {
+                        if !s.is_ascii_alphanumeric() {
                             break;
                         }
                         string.push(s);
@@ -151,10 +151,10 @@ impl Scanner {
                     };
                 },
 
-                _ => handle_error(Error::UnrecognizableCharacter, self.line),
+                _ => return Err((Error::UnrecognizableCharacter, self.line)),
             };
         }
         self.add_token(TokenType::EOF);
-        self.tokens.clone()
+        Ok(self.tokens.clone())
     }
 }

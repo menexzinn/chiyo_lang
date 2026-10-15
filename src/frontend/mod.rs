@@ -5,5 +5,10 @@ pub mod parser;
 
 use token::{Token, TokenType};
 pub use scanner::Scanner;
-use ast::{Stmt, BinaryOperator, UnaryOperator};
+pub use ast::{
+    Stmt,
+    BinaryOperator,
+    UnaryOperator,
+    FunctionArgument,
+};
 pub use parser::Parser;

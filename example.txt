@@ -7,7 +7,7 @@ const x: type = value
 
 Function declaration:
 
-fun name(arg1: type1, ...): type {
+func name(arg1: type1, ...): type {
   stmt (like a variable declaration)
   stmt (like a conditional clause)
   stmt (idk another variable or sum)

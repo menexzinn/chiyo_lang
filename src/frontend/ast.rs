@@ -6,10 +6,20 @@ pub enum UnaryOperator {
 
 #[derive(Debug)]
 pub enum BinaryOperator {
+    // arithmetic
     Add, Subtract, Multiply, Divide,
-    Equals, NotEqual, GreaterEqual, LessEqual,
+
+    // comparative
+    Equals, NotEqual,
+    GreaterEqual, LessEqual,
     Greater, Less,
     And, Or,
+}
+
+#[derive(Debug)]
+pub struct FunctionArgument {
+    pub arg_name: String,
+    pub arg_type: String,
 }
 
 #[derive(Debug)]
@@ -44,6 +54,12 @@ pub enum Stmt {
         name: String,
         var_type: String,
         value: Box<Stmt>,
+    },
+    FunctionDeclaration {
+        name: String,
+        return_type: Option<String>,
+        args: Vec<FunctionArgument>,
+        body: Vec<Box<Stmt>>,
     },
 }
 

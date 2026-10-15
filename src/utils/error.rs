@@ -1,29 +1,55 @@
+pub type Result<R> = std::result::Result<R, (Error, u32)>;
+
 pub enum Error {
+    MissingParentheses,
+    MissingBraces,
+    MissingColon,
+
+    MisplacedParentheses,
+
     UnclosedQuotes,
     UnclosedParentheses,
+    UnclosedBraces,
 
     UnrecognizableCharacter,
     UnrecognizableToken,
 
     VariableInvalidName,
-    VariableMissingColon,
-    VariableMissingType,
+    VariableInvalidType,
     VariableMissingEquals,
+
+    FunctionInvalidName,
+    FunctionInvalidType,
+    FunctionArgumentMissingName,
+    FunctionArgumentMissingType,
 }
 
-pub fn handle_error(error: Error, line: u32) {
-    let message: &str = match error {
-        Error::UnclosedQuotes => "Unclosed quotes",
-        Error::UnclosedParentheses => "Unclosed parentheses",
+impl Error {
+    pub fn handle_error(&self, line: u32) {
+        let message: &str = match self {
+            Error::MissingParentheses => "Missing parentheses",
+            Error::MissingBraces => "Missing braces",
+            Error::MissingColon => "Missing colon to separe an identifier from it's type",
 
-        Error::UnrecognizableCharacter => "Unrecognizable character",
-        Error::UnrecognizableToken => "Unrecognizable token",
+            Error::MisplacedParentheses => "Misplaced parentheses",
 
-        Error::VariableInvalidName => "Invalid name for variable declaration",
-        Error::VariableMissingColon => "Missing colon to separe the variable from its type",
-        Error::VariableMissingType => "Missing variable's type for its declaration",
-        Error::VariableMissingEquals => "Missing \'=\' sign for variable's value declaration",
-    };
+            Error::UnclosedQuotes => "Unclosed quotes",
+            Error::UnclosedParentheses => "Unclosed parentheses",
+            Error::UnclosedBraces => "Unclosed braces",
 
-    panic!("Error: {message} at line {line}");
+            Error::UnrecognizableCharacter => "Unrecognizable character",
+            Error::UnrecognizableToken => "Unrecognizable token",
+
+            Error::VariableInvalidName => "Invalid name for variable declaration",
+            Error::VariableInvalidType => "Invalid type for variable declaration",
+            Error::VariableMissingEquals => "Missing \'=\' sign for variable's value declaration",
+
+            Error::FunctionInvalidName => "Invalid name for function declaration",
+            Error::FunctionInvalidType => "Invalid return type for function declaration",
+            Error::FunctionArgumentMissingName => "Missing name for function argument",
+            Error::FunctionArgumentMissingType => "Missing type for function argument",
+        };
+
+        panic!("Error: {message} at line {line}");
+    }
 }
