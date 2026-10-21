@@ -28,15 +28,11 @@ pub enum Stmt {
         body: Vec<Box<Stmt>>,
     },
 
-    NumericLiteral {
-        value: u32,
-    },
-    BooleanLiteral {
-        value: bool,
-    },
-    Identifier {
-        value: String,
-    },
+    StringLiteral { value: String },
+    IntegerLiteral { value: i32 },
+    DecimalLiteral { value: f32 },
+    BooleanLiteral { value: bool },
+    Identifier { value: String },
     NullLiteral,
 
     UnaryExpression {
@@ -50,7 +46,6 @@ pub enum Stmt {
     },
 
     VariableDeclaration {
-        is_constant: bool,
         name: String,
         var_type: String,
         value: Box<Stmt>,
@@ -61,7 +56,8 @@ pub enum Stmt {
         args: Vec<FunctionArgument>,
         body: Vec<Box<Stmt>>,
     },
+    FunctionCall {
+        name: String,
+        args: Vec<Box<Stmt>>,
+    },
 }
-
-// before complaining at me, I am going to ensure that the value of the variable is an
-// expression which will be then evaluated as a literal, either a number or a string

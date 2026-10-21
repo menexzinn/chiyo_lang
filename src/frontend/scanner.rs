@@ -28,7 +28,13 @@ impl Scanner {
                 '{' => self.add_token(TokenType::BraceLeft),
                 '}' => self.add_token(TokenType::BraceRight),
                 '+' => self.add_token(TokenType::Plus),
-                '-' => self.add_token(TokenType::Minus),
+                '-' => match source_iter.peek() {
+                    Some(&'>') => {
+                        self.add_token(TokenType::Arrow);
+                        source_iter.next();
+                    },
+                    _ => self.add_token(TokenType::Minus),
+                },
                 '*' => self.add_token(TokenType::Star),
                 // no slash here, scroll a bit further
                 ',' => self.add_token(TokenType::Comma),
@@ -108,19 +114,34 @@ impl Scanner {
 
                 n @ '0'..='9' => {
                     let mut number_string = n.to_string();
+                    let mut is_decimal = false;
 
                     while let Some(&s) = source_iter.peek() {
-                        if !s.is_ascii_digit() {
-                            break;
-                        }
-
-                        number_string.push(s);
+                        match s {
+                            '.' => {
+                                if is_decimal {
+                                    return Err((Error::NumberAlreadyDecimal, self.line));
+                                }
+                                is_decimal = true;
+                                number_string.push(s);
+                            },
+                            _ if s.is_ascii_digit() => number_string.push(s),
+                            _ => break,
+                        };
                         source_iter.next();
-                    }
+                    };
 
                     // I use unwrap here because it's guaranteed to be a number
-                    let number: u32 = number_string.parse().unwrap();
-                    self.add_token(TokenType::Number(number));
+                    match is_decimal {
+                        true => {
+                            let dec: f32 = number_string.parse().unwrap();
+                            self.add_token(TokenType::Decimal(dec));
+                        },
+                        false => {
+                            let int: u32 = number_string.parse().unwrap();
+                            self.add_token(TokenType::Integer(int));
+                        },
+                    };
                 },
 
                 x if x.is_ascii_alphabetic() => {
@@ -137,7 +158,6 @@ impl Scanner {
 
                     match string.as_str() {
                         "let" => self.add_token(TokenType::Let),
-                        "const" => self.add_token(TokenType::Const),
                         "if" => self.add_token(TokenType::If),
                         "else" => self.add_token(TokenType::Else),
                         "nil" => self.add_token(TokenType::Nil),
@@ -147,6 +167,10 @@ impl Scanner {
                         "false" => self.add_token(TokenType::False),
                         "while" => self.add_token(TokenType::While),
                         "for" => self.add_token(TokenType::For),
+
+                        "dst" => self.add_token(TokenType::DST),
+                        "exit" => self.add_token(TokenType::Exit),
+                        "print" => self.add_token(TokenType::Print),
                         _ => self.add_token(TokenType::Ident(string)),
                     };
                 },

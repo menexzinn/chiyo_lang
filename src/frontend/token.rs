@@ -1,7 +1,8 @@
 #[derive(Clone, Debug)]
 pub enum TokenType {
     ParenLeft, ParenRight, BraceLeft, BraceRight,
-    Plus, Minus, Star, Slash, Colon, Comma, Dot,
+    Plus, Minus, Star, Slash,
+    Colon, Comma, Dot, Arrow,
 
     Not, NotEqual,
     Equal, EqualEqual,
@@ -9,11 +10,12 @@ pub enum TokenType {
     Lower, LowerEqual,
     And, Or,
 
-    Ident(String), String(String), Number(u32),
+    Ident(String), String(String), Integer(u32), Decimal(f32),
 
-    Let, Const, If, Else, Nil, Func,
-    Return, True, False, While, For,
-    EOF,
+    Let, If, Else, Nil, Func, Return,
+    True, False, While, For, EOF,
+
+    DST, Exit, Print,
 }
 
 #[derive(Clone, Debug)]

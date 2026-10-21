@@ -1,4 +1,5 @@
 use crate::frontend::{Stmt, BinaryOperator};
+use crate::dst::*;
 
 // TODO: move this file handling to file utils
 use std::fs::File;
@@ -19,13 +20,14 @@ impl Generator {
         self.buffer.push_str(line);
     }
 
-    fn generate_number(&mut self, value: u32) {
+    fn generate_number<N: std::fmt::Display>(&mut self, value: N) {
         self.write_str(&format!("  push {}\n", value));
     }
 
     fn generate_binary_expression(&mut self, operator: BinaryOperator, lhs: Stmt, rhs: Stmt) {
         match lhs {
-            Stmt::NumericLiteral { value } => self.generate_number(value),
+            Stmt::IntegerLiteral { value } => self.generate_number(value),
+            Stmt::DecimalLiteral { value } => self.generate_number(value),
             Stmt::BinaryExpression {
                 operator: ino,
                 lhs: inl,
@@ -36,7 +38,8 @@ impl Generator {
         };
 
         match rhs {
-            Stmt::NumericLiteral { value } => self.generate_number(value),
+            Stmt::IntegerLiteral { value } => self.generate_number(value),
+            Stmt::DecimalLiteral { value } => self.generate_number(value),
             Stmt::BinaryExpression {
                 operator: ino,
                 lhs: inl,
@@ -60,14 +63,27 @@ impl Generator {
         self.write_str("  push rax\n"); // push value to stack
     }
 
+    fn generate_function_call(&mut self, name: String, args: Vec<Box<Stmt>>) {
+        let to_append = match name.as_str() {
+            "exit" => exit(args),
+            "print" => print(args),
+            _ => unimplemented!(),
+        };
+
+        for line in to_append {
+            self.write_str(&line);
+        }
+    }
+
     fn handle_stmt(&mut self, stmt: Stmt) {
         match stmt {
-            Stmt::Identifier { value } => todo!(),
-            Stmt::NumericLiteral { value } => self.generate_number(value),
+            Stmt::Identifier { value: _ } => todo!(),
+            Stmt::IntegerLiteral { value } => self.generate_number(value),
+            Stmt::DecimalLiteral { value } => self.generate_number(value),
             Stmt::BinaryExpression { operator, lhs, rhs } => {
                 self.generate_binary_expression(operator, *lhs, *rhs);
             },
-            Stmt::VariableDeclaration { is_constant: _, name: _, var_type: _, value } => {
+            Stmt::VariableDeclaration { name: _, var_type: _, value } => {
                 self.handle_stmt(*value);
             },
             Stmt::FunctionDeclaration {
@@ -76,6 +92,7 @@ impl Generator {
                 args: _,
                 body: _,
             } => todo!(),
+            Stmt::FunctionCall{ name, args } => self.generate_function_call(name, args),
             _ => unimplemented!(),
         };
     }
@@ -90,11 +107,12 @@ impl Generator {
         self.write_str("_start:\n");
 
         for stmt in body {
+            println!("{:#?}", stmt);
             self.handle_stmt(*stmt);
         }
 
         self.write_str("  mov rax, 60\n");
-        self.write_str("  pop rdi\n");
+        self.write_str("  mov rdi, 0\n");
         self.write_str("  syscall\n");
 
         let bytes = self.buffer.as_bytes();

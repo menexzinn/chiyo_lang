@@ -46,3 +46,12 @@ Conditions:
 (7 <= 2) == false
 (bread > key) == true
 (1 < 0) == false
+
+---------------------------------------
+
+DST (like STD/STI in portuguese):
+we bringin "arrow operator"
+"lib->inner" > "crate::inner"
+
+dst->print("Hello, world!\n")
+dst->exit(0)

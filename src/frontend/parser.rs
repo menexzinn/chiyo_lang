@@ -35,8 +35,7 @@ impl Parser {
     // but first just primary -> addition
     fn parse_stmt(&mut self) -> Result<Stmt> {
         match self.token_at().token_type() {
-            TokenType::Let => self.parse_variable_declaration(false),
-            TokenType::Const => self.parse_variable_declaration(true),
+            TokenType::Let => self.parse_variable_declaration(),
             TokenType::Func => self.parse_function_declaration(),
             _ => self.parse_expr(),
         }
@@ -79,19 +78,17 @@ impl Parser {
                 return Err(( Error::FunctionArgumentMissingType, self.current_line() ));
             };
 
+            args.push(FunctionArgument{ arg_name, arg_type });
             match self.token_at().token_type() {
-                TokenType::ParenRight => {
-                    args.push(FunctionArgument{ arg_name, arg_type });
-                    break self.advance_pointer();
-                },
+                TokenType::ParenRight => break self.advance_pointer(),
                 TokenType::Comma => {
                     self.advance_pointer();
                     match self.token_at().token_type() {
                         TokenType::ParenRight => return Err(( Error::MisplacedParentheses, self.current_line() )),
-                        _ => args.push(FunctionArgument { arg_name, arg_type }),
+                       _ => (),
                     };
                 },
-                _ => return Err(( Error::UnclosedParentheses, self.current_line() )),
+                _ => return Err(( Error::UnexpectedToken, self.current_line() )),
             };
         };
 
@@ -128,9 +125,52 @@ impl Parser {
             body,
         })
     }
-    // as an error myself, I fucking hate error handling
 
-    fn parse_variable_declaration(&mut self, is_constant: bool) -> Result<Stmt> {
+    fn parse_function_call(&mut self) -> Result<Stmt> {
+        let name = match self.token_at().token_type() {
+            TokenType::Exit => {
+                self.advance_pointer();
+                "exit".to_string()
+            },
+            TokenType::Print => {
+                self.advance_pointer();
+                "print".to_string()
+            },
+            _ => match self.parse_expr()? {
+                Stmt::Identifier { value } => value,
+                _ => return Err(( Error::FunctionInvalidName, self.current_line() )),
+            },
+        };
+        match self.token_at().token_type() {
+            TokenType::ParenLeft => self.advance_pointer(),
+            _ => return Err(( Error::MissingParentheses, self.current_line() )),
+        };
+
+        let mut args: Vec<Box<Stmt>> = Vec::new();
+        loop {
+            match self.token_at().token_type() {
+                TokenType::ParenRight => break,
+                _ => (),
+            };
+
+            args.push(Box::new(self.parse_primary_expr()?));
+
+            match self.token_at().token_type() {
+                TokenType::Comma => {
+                    self.advance_pointer();
+                    match self.token_at().token_type() {
+                        TokenType::ParenRight => return Err(( Error::MisplacedParentheses, self.current_line() )),
+                        _ => (),
+                    };
+                },
+                TokenType::ParenRight => (),
+                _ => return Err(( Error::UnexpectedToken, self.current_line() )),
+            };
+        };
+        Ok(Stmt::FunctionCall{ name, args })
+    }
+
+    fn parse_variable_declaration(&mut self) -> Result<Stmt> {
         self.advance_pointer(); // consume "let" or "const"
 
         let Stmt::Identifier{ value: name } = self.parse_expr()? else {
@@ -152,7 +192,6 @@ impl Parser {
         };
 
         Ok(Stmt::VariableDeclaration {
-            is_constant,
             name,
             var_type,
             value: Box::new(self.parse_expr()?),
@@ -160,7 +199,10 @@ impl Parser {
     }
 
     fn parse_expr(&mut self) -> Result<Stmt> {
-        self.parse_additive_expr()
+        match self.token_at().token_type() {
+            TokenType::Exit | TokenType::Print => self.parse_function_call(),
+            _ => self.parse_additive_expr(),
+        }
     }
 
     fn parse_additive_expr(&mut self) -> Result<Stmt> {
@@ -219,11 +261,22 @@ impl Parser {
         })
     }
 
+    fn parse_dst_call(&mut self) -> Result<Stmt> {
+        self.advance_pointer();
+        match self.token_at().token_type() {
+            TokenType::Arrow => self.advance_pointer(),
+            _ => return Err(( Error::UnexpectedToken, self.current_line() )),
+        };
+        self.parse_expr()
+    }
+
     fn parse_primary_expr(&mut self) -> Result<Stmt> {
         let primary_expr = match self.token_at().token_type() {
             TokenType::Ident(name) => Stmt::Identifier{ value: name },
+            TokenType::String(string) => Stmt::StringLiteral{ value: string },
 
-            TokenType::Number(number) => Stmt::NumericLiteral{ value: number },
+            TokenType::Integer(int) => Stmt::IntegerLiteral{ value: int as i32 },
+            TokenType::Decimal(dec) => Stmt::DecimalLiteral{ value: dec },
 
             TokenType::True => Stmt::BooleanLiteral{ value: true },
             TokenType::False => Stmt::BooleanLiteral{ value: false },
@@ -238,6 +291,8 @@ impl Parser {
                     _ => return Err(( Error::UnclosedParentheses, self.current_line() )),
                 }
             },
+
+            TokenType::DST => self.parse_dst_call()?,
 
             _ => return Err(( Error::UnrecognizableToken, self.current_line() )),
         };

@@ -1,6 +1,8 @@
 pub type Result<R> = std::result::Result<R, (Error, u32)>;
 
 pub enum Error {
+    NumberAlreadyDecimal,
+
     MissingParentheses,
     MissingBraces,
     MissingColon,
@@ -13,6 +15,7 @@ pub enum Error {
 
     UnrecognizableCharacter,
     UnrecognizableToken,
+    UnexpectedToken,
 
     VariableInvalidName,
     VariableInvalidType,
@@ -25,8 +28,9 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn handle_error(&self, line: u32) {
+    pub fn handle_error(&self, line: u32, origin: &str) {
         let message: &str = match self {
+            Error::NumberAlreadyDecimal => "This number is already floating-point",
             Error::MissingParentheses => "Missing parentheses",
             Error::MissingBraces => "Missing braces",
             Error::MissingColon => "Missing colon to separe an identifier from it's type",
@@ -39,6 +43,7 @@ impl Error {
 
             Error::UnrecognizableCharacter => "Unrecognizable character",
             Error::UnrecognizableToken => "Unrecognizable token",
+            Error::UnexpectedToken => "Unexpected token",
 
             Error::VariableInvalidName => "Invalid name for variable declaration",
             Error::VariableInvalidType => "Invalid type for variable declaration",
@@ -50,6 +55,7 @@ impl Error {
             Error::FunctionArgumentMissingType => "Missing type for function argument",
         };
 
-        panic!("Error: {message} at line {line}");
+        eprintln!("Error: {origin}: {message} at line {line}");
+        std::process::exit(1);
     }
 }
