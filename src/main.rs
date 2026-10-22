@@ -1,13 +1,13 @@
 pub mod utils;
 pub mod frontend;
-pub mod optmizer;
+pub mod optimizer;
 pub mod codegen;
 pub mod dst;
 
 use utils::file::read_file_by_input;
 use utils::command::{assemble, link};
 use frontend::{Scanner, Parser};
-use optmizer::optmize;
+use optimizer::optimize;
 use codegen::Generator;
 
 fn main() {
@@ -31,10 +31,10 @@ fn main() {
         },
     };
 
-    let optmized = optmize(program);
+    let optimized = optimize(program);
 
     let mut code_generator = Generator::new();
-    code_generator.generate_code(optmized).expect("Something ain\'t braining");
+    code_generator.generate_code(optimized).expect("Something ain\'t braining");
 
     // "avengers assemble" ahh function
     assemble();

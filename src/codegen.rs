@@ -76,6 +76,7 @@ impl Generator {
     }
 
     fn handle_stmt(&mut self, stmt: Stmt) {
+        println!("{:#?}", stmt);
         match stmt {
             Stmt::Identifier { value: _ } => todo!(),
             Stmt::IntegerLiteral { value } => self.generate_number(value),
@@ -98,18 +99,12 @@ impl Generator {
     }
 
     pub fn generate_code(&mut self, program: Stmt) -> Result<()> {
-        let body = match program {
-            Stmt::Program { body } => body,
-            _ => unreachable!(),
-        };
+        let Stmt::Program{ body } = program else { unreachable!() };
 
         self.write_str("global _start\n");
         self.write_str("_start:\n");
 
-        for stmt in body {
-            println!("{:#?}", stmt);
-            self.handle_stmt(*stmt);
-        }
+        let _: () = body.into_iter().map(|stmt| self.handle_stmt(*stmt)).collect();
 
         self.write_str("  mov rax, 60\n");
         self.write_str("  mov rdi, 0\n");
