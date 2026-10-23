@@ -153,7 +153,7 @@ impl Parser {
                 _ => (),
             };
 
-            args.push(Box::new(self.parse_primary_expr()?));
+            args.push(Box::new(self.parse_expr()?));
 
             match self.token_at().token_type() {
                 TokenType::Comma => {

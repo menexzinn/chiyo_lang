@@ -1,10 +1,10 @@
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum UnaryOperator {
     MathematicalNegative,
     LogicalNegation,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum BinaryOperator {
     // arithmetic
     Add, Subtract, Multiply, Divide,
@@ -16,13 +16,13 @@ pub enum BinaryOperator {
     And, Or,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct FunctionArgument {
     pub arg_name: String,
     pub arg_type: String,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Stmt {
     Program {
         body: Vec<Box<Stmt>>,

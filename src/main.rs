@@ -7,7 +7,7 @@ pub mod dst;
 use utils::file::read_file_by_input;
 use utils::command::{assemble, link};
 use frontend::{Scanner, Parser};
-use optimizer::optimize;
+use optimizer::Optimizer;
 use codegen::Generator;
 
 fn main() {
@@ -31,7 +31,7 @@ fn main() {
         },
     };
 
-    let optimized = optimize(program);
+    let optimized = Optimizer::new().optimize(program);
 
     let mut code_generator = Generator::new();
     code_generator.generate_code(optimized).expect("Something ain\'t braining");

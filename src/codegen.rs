@@ -4,20 +4,33 @@ use crate::dst::*;
 // TODO: move this file handling to file utils
 use std::fs::File;
 use std::io::{Result, Write};
+use std::collections::HashMap;
 
 const FILE_PATH: &str = "main.asm";
 
 pub struct Generator {
     buffer: String,
+    variables: HashMap<String, Stmt>,
 }
 
 impl Generator {
     pub fn new() -> Self {
-        Self { buffer: String::new() }
+        Self {
+            buffer: String::new(),
+            variables: HashMap::new(),
+        }
     }
 
     fn write_str(&mut self, line: &str) {
         self.buffer.push_str(line);
+    }
+
+    fn insert_var(&mut self, key: String, value: Stmt) {
+        self.variables.insert(key, value);
+    }
+
+    fn get_var(&self, key: &String) -> Option<&Stmt> {
+        self.variables.get(key)
     }
 
     fn generate_number<N: std::fmt::Display>(&mut self, value: N) {
@@ -78,13 +91,17 @@ impl Generator {
     fn handle_stmt(&mut self, stmt: Stmt) {
         println!("{:#?}", stmt);
         match stmt {
-            Stmt::Identifier { value: _ } => todo!(),
+            Stmt::Identifier { value } => match self.get_var(&value) {
+                Some(s) => self.handle_stmt(s.clone()),
+                None => panic!("CODEGEN: variable not defined dude..."),
+            },
             Stmt::IntegerLiteral { value } => self.generate_number(value),
             Stmt::DecimalLiteral { value } => self.generate_number(value),
             Stmt::BinaryExpression { operator, lhs, rhs } => {
                 self.generate_binary_expression(operator, *lhs, *rhs);
             },
-            Stmt::VariableDeclaration { name: _, var_type: _, value } => {
+            Stmt::VariableDeclaration { name, var_type: _, value } => {
+                self.insert_var(name, *value.clone());
                 self.handle_stmt(*value);
             },
             Stmt::FunctionDeclaration {
@@ -92,7 +109,7 @@ impl Generator {
                 return_type: _,
                 args: _,
                 body: _,
-            } => todo!(),
+            } => unimplemented!(),
             Stmt::FunctionCall{ name, args } => self.generate_function_call(name, args),
             _ => unimplemented!(),
         };
