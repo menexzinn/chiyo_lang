@@ -6,10 +6,13 @@ pub fn exit(args: Vec<Box<Stmt>>) -> Vec<String> {
         return result;
     }
 
-    if let Stmt::IntegerLiteral{ value } = *args[0] {
-        result.push("  mov rax, 60\n".to_string());
-        result.push(format!("  mov rdi, {value}\n"));
-        result.push("  syscall\n".to_string());
-    }
+    match *args[0] {
+        Stmt::IntegerLiteral{ value } => {
+            result.push(format!("  mov rdi, {value}\n"));
+            result.push("  call exit\n".to_string());
+            result.push("  xor rdi, rdi\n".to_string());
+        },
+        _ => panic!("CODEGEN: Value for exit must have type int"),
+    };
     result
 }

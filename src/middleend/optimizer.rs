@@ -1,4 +1,5 @@
 use crate::frontend::{Stmt, BinaryOperator, UnaryOperator};
+use crate::middleend::check_type;
 use std::collections::HashMap;
 
 pub struct Optimizer {
@@ -66,8 +67,10 @@ impl Optimizer {
             (Stmt::Identifier{ value: _ }, _)
             | (_, Stmt::Identifier{ value: _ })
             | (Stmt::BinaryExpression{ operator: _, lhs: _, rhs: _ }, _)
-            | (_, Stmt::BinaryExpression{ operator: _, lhs: _, rhs: _ }) => Stmt::BinaryExpression {
-                operator, lhs: Box::new(lhs), rhs: Box::new(rhs)
+            | (_, Stmt::BinaryExpression{ operator: _, lhs: _, rhs: _ }) => {
+                Stmt::BinaryExpression {
+                    operator, lhs: Box::new(lhs), rhs: Box::new(rhs)
+                }
             },
             _ => unimplemented!(),
         }
@@ -102,38 +105,36 @@ impl Optimizer {
             dl @ Stmt::DecimalLiteral{ value: _ } => dl,
             bl @ Stmt::BooleanLiteral{ value: _ } => bl,
 
-            // constant propagation
-            Stmt::Identifier{ value } => {
-                // fuck shared references, fuck clone, fuck rust, fuck everything
-                match self.get_var(&value) {
-                    Some(s) => self.optimize_statements(*s.clone()),
-                    None => Stmt::Identifier{ value }, // throw error later cause ts not defined
-                }
+            Stmt::Identifier{ value } => match self.get_var(&value) {
+                Some(s) => *s.clone(),
+                None => panic!("CODEGEN: Undefined variable!"),
             },
 
             be @ Stmt::BinaryExpression{ operator: _, lhs: _, rhs: _ } => self.optimize_bin_expr(be),
             ue @ Stmt::UnaryExpression{ operator: _, rhs: _ } => self.optimize_unary_expr(ue),
             Stmt::VariableDeclaration{ name, var_type, value } => {
                 let opt_value = self.optimize_statements(*value);
+                // love gambiarras S2
                 match opt_value {
-                    // love gambiarras
                     Stmt::IntegerLiteral{ value } => {
-                        self.insert_var(name.clone(), Box::new(Stmt::IntegerLiteral{ value }))
+                        self.insert_var(name.clone(), Box::new(Stmt::IntegerLiteral{ value }));
                     },
                     Stmt::DecimalLiteral{ value } => {
-                        self.insert_var(name.clone(), Box::new(Stmt::DecimalLiteral{ value }))
+                        self.insert_var(name.clone(), Box::new(Stmt::DecimalLiteral{ value }));
                     },
-                    _ => ()
-                }
+                    _ => (),
+                };
+                check_type(var_type.clone(), opt_value.clone());
                 Stmt::VariableDeclaration { name, var_type, value: Box::new(opt_value) }
             },
-            Stmt::FunctionCall{ name, args } => {
+            Stmt::FunctionCall{ name, args, is_dst } => {
                 Stmt::FunctionCall{
                     name,
                     args: args
                         .into_iter()
                         .map(|arg| Box::new(self.optimize_statements(*arg)))
-                        .collect()
+                        .collect(),
+                    is_dst,
                 }
             },
             _ => stmt,

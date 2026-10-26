@@ -10,13 +10,17 @@ const FILE_PATH: &str = "main.asm";
 
 pub struct Generator {
     buffer: String,
-    variables: HashMap<String, Stmt>,
+    stack_pointer: u32,
+
+    // name, position, value
+    variables: HashMap<String, (u32, Stmt)>,
 }
 
 impl Generator {
     pub fn new() -> Self {
         Self {
             buffer: String::new(),
+            stack_pointer: 0,
             variables: HashMap::new(),
         }
     }
@@ -26,10 +30,11 @@ impl Generator {
     }
 
     fn insert_var(&mut self, key: String, value: Stmt) {
-        self.variables.insert(key, value);
+        self.stack_pointer += 8;
+        self.variables.insert(key, (self.stack_pointer, value));
     }
 
-    fn get_var(&self, key: &String) -> Option<&Stmt> {
+    fn get_var(&self, key: &String) -> Option<&(u32, Stmt)> {
         self.variables.get(key)
     }
 
@@ -76,7 +81,11 @@ impl Generator {
         self.write_str("  push rax\n"); // push value to stack
     }
 
-    fn generate_function_call(&mut self, name: String, args: Vec<Box<Stmt>>) {
+    fn generate_function_call(&mut self, name: String, args: Vec<Box<Stmt>>, is_dst: bool) {
+        if !is_dst {
+            unimplemented!("For now you can use only library functions!")
+        }
+
         let to_append = match name.as_str() {
             "exit" => exit(args),
             "print" => print(args),
@@ -92,8 +101,8 @@ impl Generator {
         println!("{:#?}", stmt);
         match stmt {
             Stmt::Identifier { value } => match self.get_var(&value) {
-                Some(s) => self.handle_stmt(s.clone()),
-                None => panic!("CODEGEN: variable not defined dude..."),
+                Some((_, s)) => self.handle_stmt(s.clone()),
+                _ => panic!("CODEGEN: variable not defined dude..."),
             },
             Stmt::IntegerLiteral { value } => self.generate_number(value),
             Stmt::DecimalLiteral { value } => self.generate_number(value),
@@ -110,7 +119,7 @@ impl Generator {
                 args: _,
                 body: _,
             } => unimplemented!(),
-            Stmt::FunctionCall{ name, args } => self.generate_function_call(name, args),
+            Stmt::FunctionCall{ name, args, is_dst } => self.generate_function_call(name, args, is_dst),
             _ => unimplemented!(),
         };
     }
@@ -118,6 +127,10 @@ impl Generator {
     pub fn generate_code(&mut self, program: Stmt) -> Result<()> {
         let Stmt::Program{ body } = program else { unreachable!() };
 
+        self.write_str("extern exit\n");
+        // self.write_str("extern print\n");
+
+        self.write_str("section .text\n");
         self.write_str("global _start\n");
         self.write_str("_start:\n");
 

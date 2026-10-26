@@ -33,7 +33,7 @@ pub enum Stmt {
     DecimalLiteral { value: f32 },
     BooleanLiteral { value: bool },
     Identifier { value: String },
-    NullLiteral,
+    NilLiteral,
 
     UnaryExpression {
         operator: UnaryOperator,
@@ -59,5 +59,6 @@ pub enum Stmt {
     FunctionCall {
         name: String,
         args: Vec<Box<Stmt>>,
+        is_dst: bool,
     },
 }

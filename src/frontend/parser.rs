@@ -126,7 +126,7 @@ impl Parser {
         })
     }
 
-    fn parse_function_call(&mut self) -> Result<Stmt> {
+    fn parse_function_call(&mut self, is_dst: bool) -> Result<Stmt> {
         let name = match self.token_at().token_type() {
             TokenType::Exit => {
                 self.advance_pointer();
@@ -167,7 +167,7 @@ impl Parser {
                 _ => return Err(( Error::UnexpectedToken, self.current_line() )),
             };
         };
-        Ok(Stmt::FunctionCall{ name, args })
+        Ok(Stmt::FunctionCall{ name, args, is_dst })
     }
 
     fn parse_variable_declaration(&mut self) -> Result<Stmt> {
@@ -182,8 +182,10 @@ impl Parser {
             _ => return Err(( Error::MissingColon, self.current_line() )),
         };
 
-        let Stmt::Identifier{ value: var_type } = self.parse_expr()? else {
-            return Err(( Error::VariableInvalidType, self.current_line() ));
+        let var_type = match self.parse_expr()? {
+            Stmt::Identifier{ value } => value,
+            Stmt::NilLiteral => "nil".to_string(),
+            _ => return Err(( Error::VariableInvalidType, self.current_line() )),
         };
 
         match self.token_at().token_type() {
@@ -200,7 +202,7 @@ impl Parser {
 
     fn parse_expr(&mut self) -> Result<Stmt> {
         match self.token_at().token_type() {
-            TokenType::Exit | TokenType::Print => self.parse_function_call(),
+            TokenType::Exit | TokenType::Print => self.parse_function_call(true),
             _ => self.parse_additive_expr(),
         }
     }
@@ -281,7 +283,7 @@ impl Parser {
             TokenType::True => Stmt::BooleanLiteral{ value: true },
             TokenType::False => Stmt::BooleanLiteral{ value: false },
 
-            TokenType::Nil => Stmt::NullLiteral,
+            TokenType::Nil => Stmt::NilLiteral,
 
             TokenType::ParenLeft => {
                 self.advance_pointer();

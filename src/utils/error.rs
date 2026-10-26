@@ -25,6 +25,8 @@ pub enum Error {
     FunctionInvalidType,
     FunctionArgumentMissingName,
     FunctionArgumentMissingType,
+
+    Other,
 }
 
 impl Error {
@@ -53,9 +55,16 @@ impl Error {
             Error::FunctionInvalidType => "Invalid return type for function declaration",
             Error::FunctionArgumentMissingName => "Missing name for function argument",
             Error::FunctionArgumentMissingType => "Missing type for function argument",
+
+            Error::Other => panic!("you should have used it at panic function!"),
         };
 
-        eprintln!("Error: {origin}: {message} at line {line}");
+        let formatted_message = format!("{origin}: {message} at line {line}");
+        self.panic(formatted_message);
+    }
+
+    pub fn panic(&self, msg: String) {
+        eprintln!("ERROR: {msg}");
         std::process::exit(1);
     }
 }
