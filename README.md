@@ -1,6 +1,4 @@
-# Ladies and gentlemen
-# Introducing the CHIYO lang!
-# And the rust flavored compiler
+# Chiyo lang
 
 Under development and has almost no functionality
 
