@@ -1,9 +1,8 @@
-use crate::frontend::{Stmt, BinaryOperator};
 use crate::dst::*;
+use crate::frontend::{BinaryOperator, Stmt};
+use crate::utils::error::Error;
+use crate::utils::file::write_string_to_file;
 
-// TODO: move this file handling to file utils
-use std::fs::File;
-use std::io::{Result, Write};
 use std::collections::HashMap;
 
 const FILE_PATH: &str = "main.asm";
@@ -14,6 +13,7 @@ pub struct Generator {
 
     // name, position, value
     variables: HashMap<String, (u32, Stmt)>,
+    deferrable_strings: HashMap<String, String>,
 }
 
 impl Generator {
@@ -22,6 +22,7 @@ impl Generator {
             buffer: String::new(),
             stack_pointer: 0,
             variables: HashMap::new(),
+            deferrable_strings: HashMap::new(),
         }
     }
 
@@ -30,12 +31,23 @@ impl Generator {
     }
 
     fn insert_var(&mut self, key: String, value: Stmt) {
-        self.stack_pointer += 8;
-        self.variables.insert(key, (self.stack_pointer, value));
+        match value {
+            Stmt::StringLiteral { value } => {
+                self.deferrable_strings.insert(key, value);
+            }
+            _ => {
+                self.stack_pointer += 8;
+                self.variables.insert(key, (self.stack_pointer, value));
+            }
+        };
     }
 
     fn get_var(&self, key: &String) -> Option<&(u32, Stmt)> {
         self.variables.get(key)
+    }
+
+    fn get_string(&self, key: &String) -> Option<&String> {
+        self.deferrable_strings.get(key)
     }
 
     fn generate_number<N: std::fmt::Display>(&mut self, value: N) {
@@ -100,50 +112,70 @@ impl Generator {
     fn handle_stmt(&mut self, stmt: Stmt) {
         println!("{:#?}", stmt);
         match stmt {
-            Stmt::Identifier { value } => match self.get_var(&value) {
-                Some((_, s)) => self.handle_stmt(s.clone()),
-                _ => panic!("CODEGEN: variable not defined dude..."),
-            },
+            Stmt::Identifier { value } => {
+                if let Some(_) = self.get_string(&value) {
+                    return;
+                };
+                match self.get_var(&value) {
+                    Some((_, st)) => self.handle_stmt(st.clone()),
+                    _ => Error::Other.panic("CODEGEN: variable not defined dude..."),
+                }
+            }
             Stmt::IntegerLiteral { value } => self.generate_number(value),
             Stmt::DecimalLiteral { value } => self.generate_number(value),
             Stmt::BinaryExpression { operator, lhs, rhs } => {
                 self.generate_binary_expression(operator, *lhs, *rhs);
-            },
-            Stmt::VariableDeclaration { name, var_type: _, value } => {
+            }
+            Stmt::VariableDeclaration {
+                name,
+                var_type: _,
+                value,
+            } => {
                 self.insert_var(name, *value.clone());
                 self.handle_stmt(*value);
-            },
+            }
             Stmt::FunctionDeclaration {
                 name: _,
                 return_type: _,
                 args: _,
                 body: _,
             } => unimplemented!(),
-            Stmt::FunctionCall{ name, args, is_dst } => self.generate_function_call(name, args, is_dst),
+            Stmt::FunctionCall { name, args, is_dst } => {
+                self.generate_function_call(name, args, is_dst)
+            }
+            Stmt::StringLiteral { value } => println!("{value}"),
             _ => unimplemented!(),
         };
     }
 
-    pub fn generate_code(&mut self, program: Stmt) -> Result<()> {
-        let Stmt::Program{ body } = program else { unreachable!() };
+    pub fn generate_code(&mut self, program: Stmt) {
+        let Stmt::Program { body } = program else {
+            unreachable!()
+        };
 
         self.write_str("extern exit\n");
-        // self.write_str("extern print\n");
+        self.write_str("extern print\n");
 
         self.write_str("section .text\n");
         self.write_str("global _start\n");
         self.write_str("_start:\n");
 
-        let _: () = body.into_iter().map(|stmt| self.handle_stmt(*stmt)).collect();
+        let _: () = body
+            .into_iter()
+            .map(|stmt| self.handle_stmt(*stmt))
+            .collect();
 
         self.write_str("  mov rax, 60\n");
         self.write_str("  mov rdi, 0\n");
         self.write_str("  syscall\n");
 
-        let bytes = self.buffer.as_bytes();
+        self.write_str("section .data\n");
+        for (key, value) in self.deferrable_strings.clone().into_iter() {
+            self.write_str(&format!("  {key} db \'{value}\', 0x0a\n"));
+            self.write_str(&format!("  {key}Len equ $ - {key}\n"));
+        }
 
-        let mut file = File::create(FILE_PATH)?;
-        file.write_all(bytes)?;
-        Ok(())
+        let bytes = self.buffer.as_bytes();
+        write_string_to_file(FILE_PATH, bytes);
     }
 }

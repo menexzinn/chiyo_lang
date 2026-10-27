@@ -1,13 +1,13 @@
-pub mod utils;
-pub mod frontend;
-pub mod middleend;
 pub mod backend;
 pub mod dst;
+pub mod frontend;
+pub mod middleend;
+pub mod utils;
 
-use utils::file::read_file_by_input;
-use frontend::{Scanner, Parser};
-use middleend::Optimizer;
 use backend::Generator;
+use frontend::{Parser, Scanner};
+use middleend::Optimizer;
+use utils::file::read_file_by_input;
 
 fn main() {
     let source = read_file_by_input();
@@ -18,7 +18,7 @@ fn main() {
         Err((error, line)) => {
             error.handle_error(line, "tokenization");
             unreachable!();
-        },
+        }
     };
 
     let mut parser = Parser::new(tokens);
@@ -27,13 +27,13 @@ fn main() {
         Err((error, line)) => {
             error.handle_error(line, "parsing");
             unreachable!();
-        },
+        }
     };
 
     let optimized = Optimizer::new().optimize(program);
 
     let mut code_generator = Generator::new();
-    code_generator.generate_code(optimized).expect("Something ain\'t braining");
+    code_generator.generate_code(optimized);
 
-    println!("The executable file \'main\' was generated successfully! :D");
+    println!("INFO: generated assembly code file successfully");
 }

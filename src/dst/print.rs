@@ -6,18 +6,15 @@ pub fn print(args: Vec<Box<Stmt>>) -> Vec<String> {
         return result;
     }
 
-    // rsi: String, rdx: number
-    let (rsi, rdx) = match &*args[0] {
-        Stmt::StringLiteral{ value } => (value.clone(), value.len()),
-        Stmt::IntegerLiteral{ value } => (format!("{value}"), 4),
-        Stmt::DecimalLiteral{ value } => (format!("{value}"), 4),
+    // you print variables, not pure strings
+    let variable = match &*args[0] {
+        Stmt::Identifier { value } => value,
         _ => unimplemented!(),
     };
 
-    result.push("  mov rax, 1\n".to_string()); // write
-    result.push("  mov rdi, 1\n".to_string()); // stdout
-    result.push(format!("  mov rsi, {rsi}\n")); // message
-    result.push(format!("  mov rdx, {rdx}\n")); // bytes
-    result.push("  syscall\n".to_string()); // call
+    result.push(format!("  mov rsi, {variable}\n")); // message
+    result.push(format!("  mov rdx, {variable}Len\n")); // bytes
+    result.push("  call print\n".to_string()); // call
+
     result
 }

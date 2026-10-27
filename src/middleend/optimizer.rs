@@ -1,4 +1,4 @@
-use crate::frontend::{Stmt, BinaryOperator, UnaryOperator};
+use crate::frontend::{BinaryOperator, Stmt, UnaryOperator};
 use crate::middleend::check_type;
 use std::collections::HashMap;
 
@@ -8,15 +8,17 @@ pub struct Optimizer {
 
 impl Optimizer {
     pub fn new() -> Self {
-        Self{ opt_vars: HashMap::new() }
+        Self {
+            opt_vars: HashMap::new(),
+        }
     }
 
     fn insert_var(&mut self, key: String, value: Box<Stmt>) {
         self.opt_vars.insert(key, value);
     }
-    fn get_var(&self, key: &String) -> Option<&Box<Stmt>> {
-        self.opt_vars.get(key)
-    }
+    // fn get_var(&self, key: &String) -> Option<&Box<Stmt>> {
+    // self.opt_vars.get(key)
+    // }
 
     // arithmetic optimization
     fn calculate(&self, operator: BinaryOperator, a: f32, b: f32) -> f32 {
@@ -26,8 +28,7 @@ impl Optimizer {
             (BinaryOperator::Subtract, _, 0.0) => a,
             (BinaryOperator::Subtract, 0.0, _) => -b,
 
-            (BinaryOperator::Multiply, _, 0.0)
-            | (BinaryOperator::Multiply, 0.0, _) => 0.0,
+            (BinaryOperator::Multiply, _, 0.0) | (BinaryOperator::Multiply, 0.0, _) => 0.0,
 
             (BinaryOperator::Add, _, _) => a + b,
             (BinaryOperator::Subtract, _, _) => a - b,
@@ -41,43 +42,63 @@ impl Optimizer {
     // constant folding
     fn operate_expr(&self, operator: BinaryOperator, lhs: Stmt, rhs: Stmt) -> Stmt {
         match (&lhs, &rhs) {
-            (Stmt::IntegerLiteral{ value: a }, Stmt::IntegerLiteral { value: b }) => match operator {
-                BinaryOperator::Divide => Stmt::DecimalLiteral{
-                    value: self.calculate(operator, *a as f32, *b as f32)
-                },
-                _ => {
-                    let value = self.calculate(operator, *a as f32, *b as f32);
-                    Stmt::IntegerLiteral{ value: value as i32 }
-                },
-            },
-            (Stmt::DecimalLiteral{ value: a }, Stmt::DecimalLiteral{ value: b }) => {
+            (Stmt::IntegerLiteral { value: a }, Stmt::IntegerLiteral { value: b }) => {
+                match operator {
+                    BinaryOperator::Divide => Stmt::DecimalLiteral {
+                        value: self.calculate(operator, *a as f32, *b as f32),
+                    },
+                    _ => {
+                        let value = self.calculate(operator, *a as f32, *b as f32);
+                        Stmt::IntegerLiteral {
+                            value: value as i32,
+                        }
+                    }
+                }
+            }
+            (Stmt::DecimalLiteral { value: a }, Stmt::DecimalLiteral { value: b }) => {
                 let value = self.calculate(operator, *a, *b);
-                Stmt::DecimalLiteral{ value }
-            },
+                Stmt::DecimalLiteral { value }
+            }
 
-            (Stmt::IntegerLiteral{ value: a }, Stmt::DecimalLiteral { value: b }) => {
+            (Stmt::IntegerLiteral { value: a }, Stmt::DecimalLiteral { value: b }) => {
                 let value = self.calculate(operator, *a as f32, *b);
                 Stmt::DecimalLiteral { value }
-            },
-            (Stmt::DecimalLiteral{ value: a }, Stmt::IntegerLiteral { value: b }) => {
+            }
+            (Stmt::DecimalLiteral { value: a }, Stmt::IntegerLiteral { value: b }) => {
                 let value = self.calculate(operator, *a, *b as f32);
                 Stmt::DecimalLiteral { value }
-            },
+            }
 
-            (Stmt::Identifier{ value: _ }, _)
-            | (_, Stmt::Identifier{ value: _ })
-            | (Stmt::BinaryExpression{ operator: _, lhs: _, rhs: _ }, _)
-            | (_, Stmt::BinaryExpression{ operator: _, lhs: _, rhs: _ }) => {
+            (Stmt::Identifier { value: _ }, _)
+            | (_, Stmt::Identifier { value: _ })
+            | (
                 Stmt::BinaryExpression {
-                    operator, lhs: Box::new(lhs), rhs: Box::new(rhs)
-                }
+                    operator: _,
+                    lhs: _,
+                    rhs: _,
+                },
+                _,
+            )
+            | (
+                _,
+                Stmt::BinaryExpression {
+                    operator: _,
+                    lhs: _,
+                    rhs: _,
+                },
+            ) => Stmt::BinaryExpression {
+                operator,
+                lhs: Box::new(lhs),
+                rhs: Box::new(rhs),
             },
             _ => unimplemented!(),
         }
     }
 
     fn optimize_bin_expr(&mut self, bin_expr: Stmt) -> Stmt {
-        let Stmt::BinaryExpression{ operator, lhs, rhs } = bin_expr else { unreachable!() };
+        let Stmt::BinaryExpression { operator, lhs, rhs } = bin_expr else {
+            unreachable!();
+        };
 
         let opt_lhs = self.optimize_statements(*lhs);
         let opt_rhs = self.optimize_statements(*rhs);
@@ -86,69 +107,96 @@ impl Optimizer {
     }
 
     fn optimize_unary_expr(&mut self, unary_expr: Stmt) -> Stmt {
-        let Stmt::UnaryExpression{ operator, rhs } = unary_expr else { unreachable!() };
+        let Stmt::UnaryExpression { operator, rhs } = unary_expr else {
+            unreachable!();
+        };
 
         let opt_rhs = self.optimize_statements(*rhs);
 
         match (&operator, &opt_rhs) {
-            (UnaryOperator::MathematicalNegative, Stmt::IntegerLiteral{ value }) => Stmt::IntegerLiteral{ value: -value },
-            (UnaryOperator::MathematicalNegative, Stmt::DecimalLiteral{ value }) => Stmt::DecimalLiteral{ value: -value },
-            (UnaryOperator::LogicalNegation, Stmt::BooleanLiteral{ value }) => Stmt::BooleanLiteral{ value: !value },
-            (_, Stmt::Identifier{ value: _ }) => Stmt::UnaryExpression{ operator, rhs: Box::new(opt_rhs) },
+            (UnaryOperator::MathematicalNegative, Stmt::IntegerLiteral { value }) => {
+                Stmt::IntegerLiteral { value: -value }
+            }
+            (UnaryOperator::MathematicalNegative, Stmt::DecimalLiteral { value }) => {
+                Stmt::DecimalLiteral { value: -value }
+            }
+            (UnaryOperator::LogicalNegation, Stmt::BooleanLiteral { value }) => {
+                Stmt::BooleanLiteral { value: !value }
+            }
+            (_, Stmt::Identifier { value: _ }) => Stmt::UnaryExpression {
+                operator,
+                rhs: Box::new(opt_rhs),
+            },
             _ => unimplemented!(),
         }
     }
 
     fn optimize_statements(&mut self, stmt: Stmt) -> Stmt {
         match stmt {
-            il @ Stmt::IntegerLiteral{ value: _ } => il,
-            dl @ Stmt::DecimalLiteral{ value: _ } => dl,
-            bl @ Stmt::BooleanLiteral{ value: _ } => bl,
+            il @ Stmt::IntegerLiteral { value: _ } => il,
+            dl @ Stmt::DecimalLiteral { value: _ } => dl,
+            bl @ Stmt::BooleanLiteral { value: _ } => bl,
 
-            Stmt::Identifier{ value } => match self.get_var(&value) {
-                Some(s) => *s.clone(),
-                None => panic!("CODEGEN: Undefined variable!"),
-            },
-
-            be @ Stmt::BinaryExpression{ operator: _, lhs: _, rhs: _ } => self.optimize_bin_expr(be),
-            ue @ Stmt::UnaryExpression{ operator: _, rhs: _ } => self.optimize_unary_expr(ue),
-            Stmt::VariableDeclaration{ name, var_type, value } => {
+            // okay so we gonna just ignore identifiers and fuck constant propagation cuz its
+            // breaking my function call and breaking assembly bad
+            be @ Stmt::BinaryExpression {
+                operator: _,
+                lhs: _,
+                rhs: _,
+            } => self.optimize_bin_expr(be),
+            ue @ Stmt::UnaryExpression {
+                operator: _,
+                rhs: _,
+            } => self.optimize_unary_expr(ue),
+            Stmt::VariableDeclaration {
+                name,
+                var_type,
+                value,
+            } => {
                 let opt_value = self.optimize_statements(*value);
                 // love gambiarras S2
                 match opt_value {
-                    Stmt::IntegerLiteral{ value } => {
-                        self.insert_var(name.clone(), Box::new(Stmt::IntegerLiteral{ value }));
-                    },
-                    Stmt::DecimalLiteral{ value } => {
-                        self.insert_var(name.clone(), Box::new(Stmt::DecimalLiteral{ value }));
-                    },
+                    Stmt::IntegerLiteral { value } => {
+                        self.insert_var(name.clone(), Box::new(Stmt::IntegerLiteral { value }));
+                    }
+                    Stmt::DecimalLiteral { value } => {
+                        self.insert_var(name.clone(), Box::new(Stmt::DecimalLiteral { value }));
+                    }
+                    Stmt::StringLiteral { ref value } => {
+                        let value = value.clone();
+                        self.insert_var(name.clone(), Box::new(Stmt::StringLiteral { value }));
+                    }
                     _ => (),
                 };
                 check_type(var_type.clone(), opt_value.clone());
-                Stmt::VariableDeclaration { name, var_type, value: Box::new(opt_value) }
-            },
-            Stmt::FunctionCall{ name, args, is_dst } => {
-                Stmt::FunctionCall{
+                Stmt::VariableDeclaration {
                     name,
-                    args: args
-                        .into_iter()
-                        .map(|arg| Box::new(self.optimize_statements(*arg)))
-                        .collect(),
-                    is_dst,
+                    var_type,
+                    value: Box::new(opt_value),
                 }
+            }
+            Stmt::FunctionCall { name, args, is_dst } => Stmt::FunctionCall {
+                name,
+                args: args
+                    .into_iter()
+                    .map(|arg| Box::new(self.optimize_statements(*arg)))
+                    .collect(),
+                is_dst,
             },
             _ => stmt,
         }
     }
 
     pub fn optimize(&mut self, program: Stmt) -> Stmt {
-        let Stmt::Program{ body } = program else { unreachable!() };
+        let Stmt::Program { body } = program else {
+            unreachable!()
+        };
 
-        Stmt::Program{
+        Stmt::Program {
             body: body
                 .into_iter()
                 .map(|stmt| Box::new(self.optimize_statements(*stmt)))
-                .collect()
+                .collect(),
         }
     }
 }

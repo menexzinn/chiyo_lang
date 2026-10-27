@@ -63,8 +63,8 @@ impl Error {
         self.panic(formatted_message);
     }
 
-    pub fn panic(&self, msg: String) {
-        eprintln!("ERROR: {msg}");
+    pub fn panic<S: std::string::ToString>(&self, msg: S) {
+        eprintln!("ERROR: {}", msg.to_string());
         std::process::exit(1);
     }
 }
