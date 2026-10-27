@@ -9,49 +9,31 @@ const FILE_PATH: &str = "main.asm";
 
 pub struct Generator {
     buffer: String,
-    stack_pointer: u32,
-
-    // name, position, value
-    variables: HashMap<String, (u32, Stmt)>,
-    deferrable_strings: HashMap<String, String>,
+    variables: HashMap<String, Stmt>,
 }
 
 impl Generator {
     pub fn new() -> Self {
         Self {
             buffer: String::new(),
-            stack_pointer: 0,
             variables: HashMap::new(),
-            deferrable_strings: HashMap::new(),
         }
     }
 
-    fn write_str(&mut self, line: &str) {
-        self.buffer.push_str(line);
+    fn write_str<S: std::string::ToString>(&mut self, line: S) {
+        self.buffer.push_str(&line.to_string());
     }
 
     fn insert_var(&mut self, key: String, value: Stmt) {
-        match value {
-            Stmt::StringLiteral { value } => {
-                self.deferrable_strings.insert(key, value);
-            }
-            _ => {
-                self.stack_pointer += 8;
-                self.variables.insert(key, (self.stack_pointer, value));
-            }
-        };
+        self.variables.insert(key, value);
     }
 
-    fn get_var(&self, key: &String) -> Option<&(u32, Stmt)> {
+    fn get_var(&self, key: &String) -> Option<&Stmt> {
         self.variables.get(key)
     }
 
-    fn get_string(&self, key: &String) -> Option<&String> {
-        self.deferrable_strings.get(key)
-    }
-
     fn generate_number<N: std::fmt::Display>(&mut self, value: N) {
-        self.write_str(&format!("  push {}\n", value));
+        self.write_str(format!("  push {}\n", value));
     }
 
     fn generate_binary_expression(&mut self, operator: BinaryOperator, lhs: Stmt, rhs: Stmt) {
@@ -89,7 +71,7 @@ impl Generator {
 
         self.write_str("  pop rcx\n"); // second value (top of stack)
         self.write_str("  pop rax\n"); // first value (bottom of stack)
-        self.write_str(&format!("  {op} rax, rcx\n")); // operate
+        self.write_str(format!("  {op} rax, rcx\n")); // operate
         self.write_str("  push rax\n"); // push value to stack
     }
 
@@ -105,22 +87,17 @@ impl Generator {
         };
 
         for line in to_append {
-            self.write_str(&line);
+            self.write_str(line);
         }
     }
 
     fn handle_stmt(&mut self, stmt: Stmt) {
         println!("{:#?}", stmt);
         match stmt {
-            Stmt::Identifier { value } => {
-                if let Some(_) = self.get_string(&value) {
-                    return;
-                };
-                match self.get_var(&value) {
-                    Some((_, st)) => self.handle_stmt(st.clone()),
-                    _ => Error::Other.panic("CODEGEN: variable not defined dude..."),
-                }
-            }
+            Stmt::Identifier { value } => match self.get_var(&value) {
+                Some(st) => self.handle_stmt(st.clone()),
+                _ => Error::Other.panic("CODEGEN: variable not defined dude..."),
+            },
             Stmt::IntegerLiteral { value } => self.generate_number(value),
             Stmt::DecimalLiteral { value } => self.generate_number(value),
             Stmt::BinaryExpression { operator, lhs, rhs } => {
@@ -143,7 +120,7 @@ impl Generator {
             Stmt::FunctionCall { name, args, is_dst } => {
                 self.generate_function_call(name, args, is_dst)
             }
-            Stmt::StringLiteral { value } => println!("{value}"),
+            Stmt::StringLiteral { value: _ } => (),
             _ => unimplemented!(),
         };
     }
@@ -160,19 +137,34 @@ impl Generator {
         self.write_str("global _start\n");
         self.write_str("_start:\n");
 
+        // initialize stack or something like that
+        self.write_str("  push rbp\n");
+        self.write_str("  mov rbp, rsp\n");
+
         let _: () = body
             .into_iter()
             .map(|stmt| self.handle_stmt(*stmt))
             .collect();
 
+        // undo stack (I think that's what it does) and exit with success
+        self.write_str("  pop rbp\n");
         self.write_str("  mov rax, 60\n");
         self.write_str("  mov rdi, 0\n");
         self.write_str("  syscall\n");
 
+        // variables' section baby
         self.write_str("section .data\n");
-        for (key, value) in self.deferrable_strings.clone().into_iter() {
-            self.write_str(&format!("  {key} db \'{value}\', 0x0a\n"));
-            self.write_str(&format!("  {key}Len equ $ - {key}\n"));
+
+        for (key, value) in self.variables.clone().into_iter() {
+            match value {
+                Stmt::StringLiteral { value } => {
+                    self.write_str(format!("  {key} db \'{value}\', 0x0a\n"));
+                    self.write_str(format!("  {key}Len equ $ - {key}\n"));
+                }
+                Stmt::IntegerLiteral { value } => self.write_str(format!("  {key} dw {value}\n")),
+                Stmt::DecimalLiteral { value } => self.write_str(format!("  {key} dw {value}\n")),
+                _ => unimplemented!(),
+            }
         }
 
         let bytes = self.buffer.as_bytes();
