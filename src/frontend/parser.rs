@@ -1,5 +1,5 @@
+use crate::frontend::{BinaryOperator, FunctionArgument, Stmt, UnaryOperator};
 use crate::frontend::{Token, TokenType};
-use crate::frontend::{Stmt, BinaryOperator, UnaryOperator, FunctionArgument};
 use crate::utils::error::{Error, Result};
 
 pub struct Parser {
@@ -9,10 +9,7 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self {
-            tokens,
-            pointer: 0,
-        }
+        Self { tokens, pointer: 0 }
     }
 
     fn token_at(&self) -> Token {
@@ -25,6 +22,14 @@ impl Parser {
 
     fn advance_pointer(&mut self) {
         self.pointer += 1;
+    }
+
+    fn expect_and_consume(&mut self, token: TokenType, error: Error) -> Result<()> {
+        if token != self.token_at().token_type() {
+            return Err((error, self.current_line()));
+        }
+        self.advance_pointer();
+        Ok(())
     }
 
     // prescidence order!:
@@ -47,15 +52,12 @@ impl Parser {
     // func function(): type {}
     fn parse_function_declaration(&mut self) -> Result<Stmt> {
         self.advance_pointer(); // consume "func"
-        
-        let Stmt::Identifier { value: name } = self.parse_expr()? else {
-            return Err(( Error::FunctionInvalidName, self.current_line() ));
+
+        let Stmt::Identifier(name) = self.parse_expr()? else {
+            return Err((Error::FunctionInvalidName, self.current_line()));
         };
 
-        match self.token_at().token_type() {
-            TokenType::ParenLeft => self.advance_pointer(),
-            _ => return Err(( Error::MissingParentheses, self.current_line() )),
-        };
+        self.expect_and_consume(TokenType::ParenLeft, Error::MisplacedParentheses)?;
 
         // func function(arg1: type1, )
         let mut args: Vec<FunctionArgument> = Vec::new();
@@ -65,58 +67,54 @@ impl Parser {
                 _ => (),
             };
 
-            let Stmt::Identifier { value: arg_name } = self.parse_expr()? else {
-                return Err(( Error::FunctionArgumentMissingName, self.current_line() ));
+            let Stmt::Identifier(arg_name) = self.parse_expr()? else {
+                return Err((Error::FunctionArgumentMissingName, self.current_line()));
             };
 
-            match self.token_at().token_type() {
-                TokenType::Colon => self.advance_pointer(),
-                _ => return Err(( Error::MissingColon, self.current_line() )),
+            self.expect_and_consume(TokenType::Colon, Error::MissingColon)?;
+
+            let Stmt::Identifier(arg_type) = self.parse_expr()? else {
+                return Err((Error::FunctionArgumentMissingType, self.current_line()));
             };
 
-            let Stmt::Identifier { value: arg_type } = self.parse_expr()? else {
-                return Err(( Error::FunctionArgumentMissingType, self.current_line() ));
-            };
-
-            args.push(FunctionArgument{ arg_name, arg_type });
+            args.push(FunctionArgument { arg_name, arg_type });
             match self.token_at().token_type() {
                 TokenType::ParenRight => break self.advance_pointer(),
                 TokenType::Comma => {
                     self.advance_pointer();
                     match self.token_at().token_type() {
-                        TokenType::ParenRight => return Err(( Error::MisplacedParentheses, self.current_line() )),
-                       _ => (),
+                        TokenType::ParenRight => {
+                            return Err((Error::MisplacedParentheses, self.current_line()));
+                        }
+                        _ => (),
                     };
-                },
-                _ => return Err(( Error::UnexpectedToken, self.current_line() )),
+                }
+                _ => return Err((Error::UnexpectedToken, self.current_line())),
             };
-        };
+        }
 
         let return_type: Option<String> = match self.token_at().token_type() {
             TokenType::Colon => {
                 self.advance_pointer();
 
                 match self.parse_expr()? {
-                    Stmt::Identifier { value } => Some(value),
-                    _ => return Err(( Error::FunctionInvalidType, self.current_line() )),
+                    Stmt::Identifier(value) => Some(value),
+                    _ => return Err((Error::FunctionInvalidType, self.current_line())),
                 }
-            },
+            }
             _ => None,
         };
 
-        match self.token_at().token_type() {
-            TokenType::BraceLeft => self.advance_pointer(),
-            _ => return Err(( Error::MissingBraces, self.current_line() )),
-        };
+        self.expect_and_consume(TokenType::BraceLeft, Error::MissingBraces)?;
 
         let mut body: Vec<Box<Stmt>> = Vec::new();
         loop {
             match self.token_at().token_type() {
                 TokenType::BraceRight => break self.advance_pointer(),
-                TokenType::EOF => return Err(( Error::UnclosedBraces, self.current_line() )),
+                TokenType::EOF => return Err((Error::UnclosedBraces, self.current_line())),
                 _ => body.push(Box::new(self.parse_stmt()?)),
             };
-        };
+        }
 
         Ok(Stmt::FunctionDeclaration {
             name,
@@ -131,20 +129,17 @@ impl Parser {
             TokenType::Exit => {
                 self.advance_pointer();
                 "exit".to_string()
-            },
+            }
             TokenType::Print => {
                 self.advance_pointer();
                 "print".to_string()
-            },
+            }
             _ => match self.parse_expr()? {
-                Stmt::Identifier { value } => value,
-                _ => return Err(( Error::FunctionInvalidName, self.current_line() )),
+                Stmt::Identifier(value) => value,
+                _ => return Err((Error::FunctionInvalidName, self.current_line())),
             },
         };
-        match self.token_at().token_type() {
-            TokenType::ParenLeft => self.advance_pointer(),
-            _ => return Err(( Error::MissingParentheses, self.current_line() )),
-        };
+        self.expect_and_consume(TokenType::ParenLeft, Error::MisplacedParentheses)?;
 
         let mut args: Vec<Box<Stmt>> = Vec::new();
         loop {
@@ -159,39 +154,35 @@ impl Parser {
                 TokenType::Comma => {
                     self.advance_pointer();
                     match self.token_at().token_type() {
-                        TokenType::ParenRight => return Err(( Error::MisplacedParentheses, self.current_line() )),
+                        TokenType::ParenRight => {
+                            return Err((Error::MisplacedParentheses, self.current_line()));
+                        }
                         _ => (),
                     };
-                },
+                }
                 TokenType::ParenRight => (),
-                _ => return Err(( Error::UnexpectedToken, self.current_line() )),
+                _ => return Err((Error::UnexpectedToken, self.current_line())),
             };
-        };
-        Ok(Stmt::FunctionCall{ name, args, is_dst })
+        }
+        Ok(Stmt::FunctionCall { name, args, is_dst })
     }
 
     fn parse_variable_declaration(&mut self) -> Result<Stmt> {
         self.advance_pointer(); // consume "let" or "const"
 
-        let Stmt::Identifier{ value: name } = self.parse_expr()? else {
-            return Err(( Error::VariableInvalidName, self.current_line() ));
+        let Stmt::Identifier(name) = self.parse_expr()? else {
+            return Err((Error::VariableInvalidName, self.current_line()));
         };
 
-        match self.token_at().token_type() {
-            TokenType::Colon => self.advance_pointer(),
-            _ => return Err(( Error::MissingColon, self.current_line() )),
-        };
+        self.expect_and_consume(TokenType::Colon, Error::MissingColon)?;
 
         let var_type = match self.parse_expr()? {
-            Stmt::Identifier{ value } => value,
+            Stmt::Identifier(value) => value,
             Stmt::NilLiteral => "nil".to_string(),
-            _ => return Err(( Error::VariableInvalidType, self.current_line() )),
+            _ => return Err((Error::VariableInvalidType, self.current_line())),
         };
 
-        match self.token_at().token_type() {
-            TokenType::Equal => self.advance_pointer(),
-            _ => return Err(( Error::VariableMissingEquals, self.current_line() )),
-        };
+        self.expect_and_consume(TokenType::Equal, Error::VariableMissingEquals)?;
 
         Ok(Stmt::VariableDeclaration {
             name,
@@ -267,36 +258,34 @@ impl Parser {
         self.advance_pointer();
         match self.token_at().token_type() {
             TokenType::Arrow => self.advance_pointer(),
-            _ => return Err(( Error::UnexpectedToken, self.current_line() )),
+            _ => return Err((Error::UnexpectedToken, self.current_line())),
         };
         self.parse_expr()
     }
 
     fn parse_primary_expr(&mut self) -> Result<Stmt> {
         let primary_expr = match self.token_at().token_type() {
-            TokenType::Ident(name) => Stmt::Identifier{ value: name },
-            TokenType::String(string) => Stmt::StringLiteral{ value: string },
+            TokenType::Ident(name) => Stmt::Identifier(name),
+            TokenType::String(string) => Stmt::StringLiteral(string),
 
-            TokenType::Integer(int) => Stmt::IntegerLiteral{ value: int as i32 },
-            TokenType::Decimal(dec) => Stmt::DecimalLiteral{ value: dec },
+            TokenType::Integer(int) => Stmt::IntegerLiteral(int as i32),
+            TokenType::Float(float) => Stmt::FloatLiteral(float),
 
-            TokenType::True => Stmt::BooleanLiteral{ value: true },
-            TokenType::False => Stmt::BooleanLiteral{ value: false },
+            TokenType::True => Stmt::BooleanLiteral(true),
+            TokenType::False => Stmt::BooleanLiteral(false),
 
             TokenType::Nil => Stmt::NilLiteral,
 
             TokenType::ParenLeft => {
                 self.advance_pointer();
                 let value = self.parse_expr()?;
-                match self.token_at().token_type() {
-                    TokenType::ParenRight => value,
-                    _ => return Err(( Error::UnclosedParentheses, self.current_line() )),
-                }
-            },
+                self.expect_and_consume(TokenType::ParenRight, Error::UnclosedParentheses)?;
+                value
+            }
 
             TokenType::DST => self.parse_dst_call()?,
 
-            _ => return Err(( Error::UnrecognizableToken, self.current_line() )),
+            _ => return Err((Error::UnrecognizableToken, self.current_line())),
         };
         self.advance_pointer();
         Ok(primary_expr)
@@ -306,10 +295,12 @@ impl Parser {
         let mut body: Vec<Box<Stmt>> = Vec::new();
 
         loop {
-            if let TokenType::EOF = self.token_at().token_type() { break };
+            if let TokenType::EOF = self.token_at().token_type() {
+                break;
+            };
             body.push(Box::new(self.parse_stmt()?));
         }
 
-        Ok(Stmt::Program{ body })
+        Ok(Stmt::Program { body })
     }
 }

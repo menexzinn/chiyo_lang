@@ -1,21 +1,49 @@
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum TokenType {
-    ParenLeft, ParenRight, BraceLeft, BraceRight,
-    Plus, Minus, Star, Slash,
-    Colon, Comma, Dot, Arrow,
+    ParenLeft,
+    ParenRight,
+    BraceLeft,
+    BraceRight,
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Colon,
+    Comma,
+    Dot,
+    Arrow,
 
-    Not, NotEqual,
-    Equal, EqualEqual,
-    Greater, GreaterEqual,
-    Lower, LowerEqual,
-    And, Or,
+    Not,
+    NotEqual,
+    Equal,
+    EqualEqual,
+    Greater,
+    GreaterEqual,
+    Lower,
+    LowerEqual,
+    And,
+    Or,
 
-    Ident(String), String(String), Integer(u32), Decimal(f32),
+    Ident(String),
+    String(String),
+    Integer(u32),
+    Float(f32),
 
-    Let, If, Else, Nil, Func, Return,
-    True, False, While, For, EOF,
+    Let,
+    If,
+    Else,
+    Nil,
+    Func,
+    Return,
+    True,
+    False,
+    While,
+    For,
+    EOF,
 
-    DST, Exit, Print,
+    DST,
+    Exit,
+    Print,
 }
 
 #[derive(Clone, Debug)]
@@ -26,10 +54,7 @@ pub struct Token {
 
 impl Token {
     pub fn new(tk_type: TokenType, line: u32) -> Self {
-        Self {
-            tk_type,
-            line,
-        }
+        Self { tk_type, line }
     }
 
     pub fn token_type(&self) -> TokenType {

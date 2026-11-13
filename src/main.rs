@@ -1,12 +1,10 @@
 pub mod backend;
 pub mod dst;
 pub mod frontend;
-pub mod middleend;
 pub mod utils;
 
 use backend::Generator;
 use frontend::{Parser, Scanner};
-use middleend::Optimizer;
 use utils::file::read_file_by_input;
 
 fn main() {
@@ -30,10 +28,8 @@ fn main() {
         }
     };
 
-    let optimized = Optimizer::new().optimize(program);
-
     let mut code_generator = Generator::new();
-    code_generator.generate_code(optimized);
+    code_generator.generate_code(program);
 
     println!("INFO: generated assembly code file successfully");
 }

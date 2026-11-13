@@ -32,7 +32,7 @@ impl Scanner {
                     Some(&'>') => {
                         self.add_token(TokenType::Arrow);
                         source_iter.next();
-                    },
+                    }
                     _ => self.add_token(TokenType::Minus),
                 },
                 '*' => self.add_token(TokenType::Star),
@@ -48,28 +48,28 @@ impl Scanner {
                     Some(&'=') => {
                         self.add_token(TokenType::NotEqual);
                         source_iter.next();
-                    },
+                    }
                     _ => self.add_token(TokenType::Not),
                 },
                 '=' => match source_iter.peek() {
                     Some(&'=') => {
                         self.add_token(TokenType::EqualEqual);
                         source_iter.next();
-                    },
+                    }
                     _ => self.add_token(TokenType::Equal),
                 },
                 '>' => match source_iter.peek() {
                     Some(&'=') => {
                         self.add_token(TokenType::GreaterEqual);
                         source_iter.next();
-                    },
+                    }
                     _ => self.add_token(TokenType::Greater),
                 },
                 '<' => match source_iter.peek() {
                     Some(&'=') => {
                         self.add_token(TokenType::LowerEqual);
                         source_iter.next();
-                    },
+                    }
                     _ => self.add_token(TokenType::Lower),
                 },
                 '/' => match source_iter.peek() {
@@ -83,8 +83,8 @@ impl Scanner {
                                 self.line += 1;
                                 break;
                             }
-                        };
-                    },
+                        }
+                    }
                     _ => self.add_token(TokenType::Slash),
                 },
 
@@ -110,7 +110,7 @@ impl Scanner {
                     }
 
                     self.add_token(TokenType::String(string));
-                },
+                }
 
                 n @ '0'..='9' => {
                     let mut number_string = n.to_string();
@@ -124,25 +124,25 @@ impl Scanner {
                                 }
                                 is_decimal = true;
                                 number_string.push(s);
-                            },
+                            }
                             _ if s.is_ascii_digit() => number_string.push(s),
                             _ => break,
                         };
                         source_iter.next();
-                    };
+                    }
 
                     // I use unwrap here because it's guaranteed to be a number
                     match is_decimal {
                         true => {
-                            let dec: f32 = number_string.parse().unwrap();
-                            self.add_token(TokenType::Decimal(dec));
-                        },
+                            let float: f32 = number_string.parse().unwrap();
+                            self.add_token(TokenType::Float(float));
+                        }
                         false => {
                             let int: u32 = number_string.parse().unwrap();
                             self.add_token(TokenType::Integer(int));
-                        },
+                        }
                     };
-                },
+                }
 
                 x if x.is_ascii_alphabetic() => {
                     let mut string = x.to_string();
@@ -154,7 +154,7 @@ impl Scanner {
                         string.push(s);
                         // peek element, if alphabetic then consume, else break loop ez
                         source_iter.next();
-                    };
+                    }
 
                     match string.as_str() {
                         "let" => self.add_token(TokenType::Let),
@@ -173,7 +173,7 @@ impl Scanner {
                         "print" => self.add_token(TokenType::Print),
                         _ => self.add_token(TokenType::Ident(string)),
                     };
-                },
+                }
 
                 _ => return Err((Error::UnrecognizableCharacter, self.line)),
             };

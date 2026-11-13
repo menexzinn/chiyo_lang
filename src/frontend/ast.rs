@@ -7,13 +7,20 @@ pub enum UnaryOperator {
 #[derive(Clone, Debug)]
 pub enum BinaryOperator {
     // arithmetic
-    Add, Subtract, Multiply, Divide,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
 
     // comparative
-    Equals, NotEqual,
-    GreaterEqual, LessEqual,
-    Greater, Less,
-    And, Or,
+    Equals,
+    NotEqual,
+    GreaterEqual,
+    LessEqual,
+    Greater,
+    Less,
+    And,
+    Or,
 }
 
 #[derive(Clone, Debug)]
@@ -28,11 +35,11 @@ pub enum Stmt {
         body: Vec<Box<Stmt>>,
     },
 
-    StringLiteral { value: String },
-    IntegerLiteral { value: i32 },
-    DecimalLiteral { value: f32 },
-    BooleanLiteral { value: bool },
-    Identifier { value: String },
+    StringLiteral(String),
+    IntegerLiteral(i32),
+    FloatLiteral(f32),
+    BooleanLiteral(bool),
+    Identifier(String),
     NilLiteral,
 
     UnaryExpression {
