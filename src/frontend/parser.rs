@@ -16,6 +16,13 @@ impl Parser {
         self.tokens[self.pointer].clone()
     }
 
+    fn token_peek_type(&self) -> TokenType {
+        if self.pointer == self.tokens.len() {
+            return TokenType::Nil;
+        }
+        self.tokens[self.pointer + 1].token_type().clone()
+    }
+
     fn current_line(&self) -> u32 {
         self.token_at().line()
     }
@@ -176,11 +183,12 @@ impl Parser {
 
         self.expect_and_consume(TokenType::Colon, Error::MissingColon)?;
 
-        let var_type = match self.parse_expr()? {
-            Stmt::Identifier(value) => value,
-            Stmt::NilLiteral => "nil".to_string(),
+        let var_type = match self.token_at().token_type() {
+            TokenType::Ident(value) => value,
+            TokenType::Nil => "nil".to_string(),
             _ => return Err((Error::VariableInvalidType, self.current_line())),
         };
+        self.advance_pointer();
 
         self.expect_and_consume(TokenType::Equal, Error::VariableMissingEquals)?;
 
@@ -189,6 +197,17 @@ impl Parser {
             var_type,
             value: Box::new(self.parse_expr()?),
         })
+    }
+
+    fn parse_variable_assignment(&mut self) -> Result<Stmt> {
+        let TokenType::Ident(name) = self.token_at().token_type() else {
+            return Err((Error::VariableInvalidName, self.current_line()));
+        };
+        self.advance_pointer();
+        self.expect_and_consume(TokenType::Equal, Error::VariableMissingEquals)?;
+        let value = Box::new(self.parse_expr()?);
+        self.pointer -= 1;
+        Ok(Stmt::VariableAssignment { name, value })
     }
 
     fn parse_expr(&mut self) -> Result<Stmt> {
@@ -265,7 +284,10 @@ impl Parser {
 
     fn parse_primary_expr(&mut self) -> Result<Stmt> {
         let primary_expr = match self.token_at().token_type() {
-            TokenType::Ident(name) => Stmt::Identifier(name),
+            TokenType::Ident(name) => match self.token_peek_type() {
+                TokenType::Equal => self.parse_variable_assignment()?,
+                _ => Stmt::Identifier(name),
+            },
             TokenType::String(string) => Stmt::StringLiteral(string),
 
             TokenType::Integer(int) => Stmt::IntegerLiteral(int as i32),

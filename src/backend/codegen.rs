@@ -58,7 +58,7 @@ impl Generator {
             } => self.generate_binary_expression(buffer, ino, *inl, *inr),
             Stmt::Identifier(name) => match self.get_variable(&name) {
                 Some(offset) => self.write_str(buffer, format!("  push [rbp - {offset}]\n")),
-                _ => Error::Other.panic(format!("Undefined variable {name}")),
+                _ => Error::panic(format!("Undefined variable {name}")),
             },
             _ => unimplemented!(),
         }
@@ -104,7 +104,7 @@ impl Generator {
                 Stmt::Identifier(name) => match self.get_variable(&name) {
                     Some(value) => Stmt::FloatLiteral(*value as f32),
                     _ => {
-                        Error::Other.panic("Undefined variable {name}");
+                        Error::panic("Undefined variable {name}");
                         unreachable!();
                     }
                 },
@@ -129,8 +129,8 @@ impl Generator {
             Stmt::IntegerLiteral(value) => self.generate_number(buffer, value),
             Stmt::FloatLiteral(value) => self.generate_number(buffer, value),
             Stmt::Identifier(name) => match self.get_variable(&name) {
-                Some(value) => self.write_str(buffer, format!("  mov rax, [rbp - {value}]\n")),
-                None => Error::Other.panic(format!("Variable {name} not found")),
+                Some(loc) => self.write_str(buffer, format!("  mov rax, [rbp - {loc}]\n")),
+                None => Error::panic(format!("Variable {name} not found")),
             },
             Stmt::BinaryExpression { operator, lhs, rhs } => {
                 self.generate_binary_expression(buffer, operator, *lhs, *rhs);
@@ -150,6 +150,15 @@ impl Generator {
                     }
                 };
             }
+            Stmt::VariableAssignment { name, value } => match self.get_variable(&name) {
+                Some(loc) => match *value {
+                    Stmt::IntegerLiteral(int) => {
+                        self.write_str(buffer, format!("  mov [rbp - {loc}], {int}\n"))
+                    }
+                    _ => todo!(),
+                },
+                None => Error::panic(format!("Variable {name} not found")),
+            },
             Stmt::FunctionDeclaration {
                 name: _,
                 return_type: _,

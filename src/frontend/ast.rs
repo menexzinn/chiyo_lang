@@ -57,6 +57,10 @@ pub enum Stmt {
         var_type: String,
         value: Box<Stmt>,
     },
+    VariableAssignment {
+        name: String,
+        value: Box<Stmt>,
+    },
     FunctionDeclaration {
         name: String,
         return_type: Option<String>,

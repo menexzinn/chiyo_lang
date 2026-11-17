@@ -1,5 +1,6 @@
 use crate::frontend::Stmt;
 
+// TODO: accept evaluated binary expressions
 pub fn exit(args: Vec<Stmt>) -> Vec<String> {
     let mut result: Vec<String> = Vec::new();
     if args.len() > 1 {

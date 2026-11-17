@@ -25,4 +25,4 @@ if (condition) {
 Also, I'm unable to directly print strings for now, so you just define a variable to hold the string and then you can print it!
 Assembly is such a pain to handle but this project is being really fun to make without llvm or smth like that
 
-I FUCKING HATE THIS, TRIED TO GIT PUSH THE CHANGES TWO TIMES AND SOMEHOW THIS FUCKING PIECE OF SHIT REMOVED ALL THE FILES FROM MY DIRECTORY FUCK YOU GIT
+for some reason I need to use sudo for git push work... somehow and somewhy
