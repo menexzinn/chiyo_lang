@@ -51,6 +51,10 @@ pub enum Stmt {
         lhs: Box<Stmt>,
         rhs: Box<Stmt>,
     },
+    ConditionalExpression {
+        condition: Box<Stmt>,
+        body: Vec<Box<Stmt>>,
+    },
 
     VariableDeclaration {
         name: String,

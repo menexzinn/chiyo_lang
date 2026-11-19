@@ -19,8 +19,8 @@ pub enum TokenType {
     EqualEqual,
     Greater,
     GreaterEqual,
-    Lower,
-    LowerEqual,
+    Less,
+    LessEqual,
     And,
     Or,
 

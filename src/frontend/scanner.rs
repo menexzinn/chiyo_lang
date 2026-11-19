@@ -67,10 +67,10 @@ impl Scanner {
                 },
                 '<' => match source_iter.peek() {
                     Some(&'=') => {
-                        self.add_token(TokenType::LowerEqual);
+                        self.add_token(TokenType::LessEqual);
                         source_iter.next();
                     }
-                    _ => self.add_token(TokenType::Lower),
+                    _ => self.add_token(TokenType::Less),
                 },
                 '/' => match source_iter.peek() {
                     Some(&'/') => {

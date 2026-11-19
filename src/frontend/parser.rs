@@ -49,6 +49,7 @@ impl Parser {
         match self.token_at().token_type() {
             TokenType::Let => self.parse_variable_declaration(),
             TokenType::Func => self.parse_function_declaration(),
+            TokenType::If => self.parse_if_expr(),
             _ => self.parse_expr(),
         }
     }
@@ -213,13 +214,58 @@ impl Parser {
     fn parse_expr(&mut self) -> Result<Stmt> {
         match self.token_at().token_type() {
             TokenType::Exit | TokenType::Print => self.parse_function_call(true),
-            _ => self.parse_additive_expr(),
+            _ => self.parse_conditional_expr(),
         }
+    }
+
+    // TODO: add support for else blocks
+    fn parse_if_expr(&mut self) -> Result<Stmt> {
+        self.advance_pointer(); // consume if
+
+        self.expect_and_consume(TokenType::ParenLeft, Error::MissingParentheses)?;
+        let condition = Box::new(self.parse_conditional_expr()?);
+        self.expect_and_consume(TokenType::ParenRight, Error::UnclosedParentheses)?;
+        self.expect_and_consume(TokenType::BraceLeft, Error::MissingBraces)?;
+
+        let mut body: Vec<Box<Stmt>> = Vec::new();
+        while self.token_at().token_type() != TokenType::BraceRight {
+            if self.token_at().token_type() == TokenType::EOF {
+                return Err((Error::UnclosedBraces, self.current_line()));
+            }
+            body.push(Box::new(self.parse_stmt()?));
+        }
+        self.expect_and_consume(TokenType::BraceRight, Error::UnclosedBraces)?;
+
+        Ok(Stmt::ConditionalExpression { condition, body })
+    }
+
+    fn parse_conditional_expr(&mut self) -> Result<Stmt> {
+        let mut left = self.parse_additive_expr()?;
+        loop {
+            let operator = match self.token_at().token_type() {
+                TokenType::EqualEqual => BinaryOperator::Equals,
+                TokenType::NotEqual => BinaryOperator::NotEqual,
+                TokenType::Greater => BinaryOperator::Greater,
+                TokenType::GreaterEqual => BinaryOperator::GreaterEqual,
+                TokenType::Less => BinaryOperator::Less,
+                TokenType::LessEqual => BinaryOperator::LessEqual,
+                TokenType::And => BinaryOperator::And,
+                TokenType::Or => BinaryOperator::Or,
+                _ => break,
+            };
+            self.advance_pointer();
+
+            left = Stmt::BinaryExpression {
+                operator,
+                lhs: Box::new(left),
+                rhs: Box::new(self.parse_additive_expr()?),
+            };
+        }
+        Ok(left)
     }
 
     fn parse_additive_expr(&mut self) -> Result<Stmt> {
         let mut left = self.parse_multiplicative_expr()?; // Identifier or Numeric Literal
-
         loop {
             let operator = match self.token_at().token_type() {
                 TokenType::Plus => BinaryOperator::Add,
@@ -234,13 +280,11 @@ impl Parser {
                 rhs: Box::new(self.parse_multiplicative_expr()?),
             };
         }
-
         Ok(left)
     }
 
     fn parse_multiplicative_expr(&mut self) -> Result<Stmt> {
         let mut left = self.parse_unary_expr()?;
-
         loop {
             let operator = match self.token_at().token_type() {
                 TokenType::Star => BinaryOperator::Multiply,
@@ -255,7 +299,6 @@ impl Parser {
                 rhs: Box::new(self.parse_unary_expr()?),
             };
         }
-
         Ok(left)
     }
 
@@ -266,7 +309,6 @@ impl Parser {
             _ => return self.parse_primary_expr(),
         };
         self.advance_pointer();
-
         Ok(Stmt::UnaryExpression {
             operator,
             rhs: Box::new(self.parse_primary_expr()?),
